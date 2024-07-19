@@ -1,6 +1,5 @@
-# Ignore application.properties and HELP.md
-application.properties
-HELP.md
+# Ignore application.properties in src/main/resources
+src/main/resources/application.properties
 
 # Ignore target directory but allow specific cases
 target/
