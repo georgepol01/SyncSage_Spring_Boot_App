@@ -1,6 +1,7 @@
 package com.syncsage.syncsage.controller;
 
-import com.syncsage.syncsage.service.BookingSyncService;
+import com.syncsage.syncsage.service.AirbnbSyncService;
+import com.syncsage.syncsage.service.BookingComSyncService;
 import com.syncsage.syncsage.service.EmailMonitoringService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,10 +15,10 @@ import java.util.Date;
 public class BookingSyncController {
 
     @Autowired
-    private BookingSyncService bookingSyncService;
+    private BookingComSyncService bookingComSyncService;
 
     @Autowired
-    private EmailMonitoringService emailMonitoringService;
+    private AirbnbSyncService airbnbSyncService;
 
     @GetMapping("/update")
     public String updatePricesAndAvailability() {
@@ -26,14 +27,10 @@ public class BookingSyncController {
         double price = 100.0;
         Date availabilityDate = new Date();
 
-        bookingSyncService.syncPricesAndAvailability(listingId, price, availabilityDate);
+        bookingComSyncService.syncPricesAndAvailability(listingId, price, availabilityDate);
+        airbnbSyncService.syncPricesAndAvailability(listingId, price, availabilityDate);
 
         return "Syncing prices and availability for listingId: " + listingId;
     }
 
-    @GetMapping("/monitor-emails")
-    public String monitorEmails() {
-        emailMonitoringService.monitorBookingEmails();
-        return "Monitoring booking emails";
-    }
 }
