@@ -1,4 +1,8 @@
+# Ignore application.properties and HELP.md
+application.properties
 HELP.md
+
+# Ignore target directory but allow specific cases
 target/
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
