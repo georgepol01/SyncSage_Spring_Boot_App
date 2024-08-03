@@ -1,3 +1,6 @@
+# Ignore chrome-profile  in src/main/resources
+src/main/resources/chrome-profile/
+
 # Ignore application.properties in src/main/resources
 src/main/resources/application.properties
 

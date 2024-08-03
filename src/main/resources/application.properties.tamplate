@@ -1,15 +1,11 @@
 spring.application.name=SyncSage
 
-spring.h2.console.enabled=true
-spring.jpa.hibernate.ddl-auto=update
-spring.jpa.defer-datasource-initialization=true
-
-spring.datasource.url=jdbc:h2:mem:testdb
-spring.datasource.driverClassName=org.h2.Driver
-spring.datasource.username=sa
-spring.datasource.password=
-
+webdriver.chrome.driver=${user.dir}/src/main/resources/drivers/chromedriver.exe
+chrome.user.data.dir=${user.dir}/src/main/resources/chrome-profile
+email.provider.url=https://www.gmx.com/
+email.sender=
 gmx.email=
 gmx.password=
+airbnb.listing.names=
 
-airbnb.listing.names=Traditional Village House,Traditional Village House 2,Traditional Village House 3
+
