@@ -31,6 +31,8 @@ public class SeleniumConfig {
         options.addArguments("--disable-software-rasterizer");
         options.addArguments("--ignore-certificate-errors");
         options.addArguments("--log-level=ALL");
+        options.addArguments("--start-maximized");
+        options.addArguments("--disable-extensions");
         options.addArguments("user-data-dir=" + userDataDir);
 
         return new ChromeDriver(options);
