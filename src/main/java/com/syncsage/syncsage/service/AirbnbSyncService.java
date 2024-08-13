@@ -46,12 +46,12 @@ public class AirbnbSyncService {
             WebElement listings = wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("//*[@id=\"simple-header-profile-menu\"]/div/a[4]")));
             listings.click();
 
+            WebElement calendar = wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("//*[@id=\"react-application\"]/div/div/div[1]/div/div/div[1]/div/div/div/nav/div[1]/div/div[2]/div/div/div/div/div[2]")));
+            calendar.click();
+
             for (Object[] bookingInfo : bookingInfoList) {
                 String listingName = (String) bookingInfo[0];
                 String[] bookingDates = (String[]) bookingInfo[1];
-
-                WebElement calendar = wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("//*[@id=\"react-application\"]/div/div/div[1]/div/div/div[1]/div/div/div/nav/div[1]/div/div[2]/div/div/div/div/div[2]")));
-                calendar.click();
 
                 WebElement chooseMenu = wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("//*[@id=\"calendarControlsChipGroup\"]/div[2]/div/div[2]/div[1]/div/div[1]/div/button")));
                 chooseMenu.click();
@@ -75,11 +75,16 @@ public class AirbnbSyncService {
                     scrollAndClickDate(dateStr);
                 }
 
-                WebElement blockDates = wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("//*[@id=\"HOST-CALENDAR-SIDEBAR-CONTAINER\"]/div/div/div[2]/div/button[2]")));
+                WebElement blockDates = wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//*[@id=\"HOST-CALENDAR-SIDEBAR-CONTAINER\"]/div/div/div[2]/div/button[2]")));
 //                wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//*[@id=\"HOST-CALENDAR-SIDEBAR-CONTAINER\"]/div/div/div[2]/div/button[2]")));
+//                String ariaPressed = blockDates.getAttribute("aria-pressed");
+//                if(Objects.equals(ariaPressed, "true")) {
+//                    logger.info("Dates are already blocked for listing: " + listingName);
+//                    continue;
+//                }
                 blockDates.click();
 
-                logger.info("Blocking dates for listing: " + listingName);
+                logger.info("Blocked dates for listing: " + listingName);
                 logger.info("Check-in: " + bookingDates[0]);
                 logger.info("Check-out: " + bookingDates[1]);
 

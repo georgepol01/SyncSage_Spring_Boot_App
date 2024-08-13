@@ -62,19 +62,19 @@ public class EmailMonitoringService {
 //        }
 //    }
 
-    private void restartDriver() {
-        try {
-            if (driver != null) {
-                driver.quit(); // Quit the current driver
-            }
-        } catch (Exception e) {
-            logger.error("Error while quitting WebDriver", e);
-        } finally {
-            // Reinitialize the driver using the existing SeleniumConfig bean
-            this.driver = seleniumConfig.webDriver(); // Call the method to create a new driver
-            logger.info("WebDriver restarted successfully.");
-        }
-    }
+//    private void restartDriver() {
+//        try {
+//            if (driver != null) {
+//                driver.quit(); // Quit the current driver
+//            }
+//        } catch (Exception e) {
+//            logger.error("Error while quitting WebDriver", e);
+//        } finally {
+//            // Reinitialize the driver using the existing SeleniumConfig bean
+//            this.driver = seleniumConfig.webDriver(); // Call the method to create a new driver
+//            logger.info("WebDriver restarted successfully.");
+//        }
+//    }
 
 
     @Scheduled(fixedDelay  = 30000) // Check every 1 minute (60000 ms)
@@ -175,7 +175,7 @@ public class EmailMonitoringService {
 
         } catch (TimeoutException e) {
             logger.error("Timeout occurred while waiting for an element", e);
-            restartDriver();
+//            restartDriver();
         } catch (WebDriverException e) {
             logger.error("WebDriver error occurred", e);
 
@@ -184,7 +184,7 @@ public class EmailMonitoringService {
                 logger.error("Socket connection reset error occurred", e);
             }
 
-            restartDriver();
+//            restartDriver();
         } catch (Exception e) {
             logger.error("Unexpected error occurred", e);
         }
