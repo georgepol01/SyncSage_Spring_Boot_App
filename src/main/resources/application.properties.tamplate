@@ -1,11 +1,17 @@
 spring.application.name=SyncSage
 
+#Chrome Driver Settings
 webdriver.chrome.driver=${user.dir}/src/main/resources/drivers/chromedriver.exe
 chrome.user.data.dir=${user.dir}/src/main/resources/chrome-profile
+
+#Email Monitoring Service Settings
 email.provider.url=https://www.gmx.com/
 email.sender=
 gmx.email=
 gmx.password=
 airbnb.listing.names=
 
-
+#AirBnb Sync Service Settings
+airbnb.url=https://www.airbnb.gr/
+airbnb.email=
+airbnb.password=

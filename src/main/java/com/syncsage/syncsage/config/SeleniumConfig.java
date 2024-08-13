@@ -37,4 +37,5 @@ public class SeleniumConfig {
 
         return new ChromeDriver(options);
     }
+
 }

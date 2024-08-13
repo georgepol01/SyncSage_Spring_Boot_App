@@ -1,78 +1,202 @@
 package com.syncsage.syncsage.service;
 
-import org.openqa.selenium.By;
-import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebElement;
-import org.openqa.selenium.interactions.Actions;
+import org.openqa.selenium.*;
+import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.text.SimpleDateFormat;
 import java.time.Duration;
-import java.util.Date;
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.*;
 
 @Service
 public class AirbnbSyncService {
+
+    private static final Logger logger = LoggerFactory.getLogger(EmailMonitoringService.class);
+    private final WebDriver driver;
     @Autowired
-    private WebDriver driver;
+    public AirbnbSyncService(WebDriver driver) {
+        this.driver = driver;
+    }
+    @Value("${airbnb.url}")
+    private String airbnbUrl;
 
-    public void syncPricesAndAvailability(String listingId, double price, Date availabilityDate) {
+    @Value("${airbnb.email}")
+    private String airbnbEmail;
+
+    @Value("${airbnb.password}")
+    private String airbnbPassword;
+
+    public void blockDates(List<Object[]> bookingInfoList) {
+
         try {
-            // Step 1: Navigate to Airbnb and update prices
-            driver.get("https://www.airbnb.com");
 
-            // Simulate human-like behavior
-            simulateHumanBehavior();
+            driver.get(airbnbUrl);
 
-            // Example: Update price on Airbnb
-            WebElement priceInput = driver.findElement(By.id("price-input"));
-            performHumanLikeInput(priceInput, String.valueOf(price));
+            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(40));
 
-            // Example: Update availability on Airbnb
-            WebElement availabilityInput = driver.findElement(By.id("availability-input"));
-            performHumanLikeInput(availabilityInput, availabilityDate.toString());
+            WebElement menuButton = wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//*[@id='react-application']/div/div/div[1]/div/div[3]/div[2]/div/div/div/header/div/div[3]/nav/div[2]/div/button")));
+            menuButton.click();
+
+            WebElement listings = wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("//*[@id=\"simple-header-profile-menu\"]/div/a[4]")));
+            listings.click();
+
+            for (Object[] bookingInfo : bookingInfoList) {
+                String listingName = (String) bookingInfo[0];
+                String[] bookingDates = (String[]) bookingInfo[1];
+
+                WebElement calendar = wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("//*[@id=\"react-application\"]/div/div/div[1]/div/div/div[1]/div/div/div/nav/div[1]/div/div[2]/div/div/div/div/div[2]")));
+                calendar.click();
+
+                WebElement chooseMenu = wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("//*[@id=\"calendarControlsChipGroup\"]/div[2]/div/div[2]/div[1]/div/div[1]/div/button")));
+                chooseMenu.click();
+
+                WebElement listingElement = wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//div[normalize-space(text())='" + listingName + "']/ancestor::label//input[@type='radio']")));
+                listingElement.click();
+
+                WebElement submitListing = wait.until(ExpectedConditions.elementToBeClickable(By.xpath("/html/body/div[8]/div/div/section/div/div/div[2]/div/footer/div/button")));
+                submitListing.click();
+
+                Date startDate = new SimpleDateFormat("yyyy-MM-dd").parse(bookingDates[0]);
+                Date endDate = new SimpleDateFormat("yyyy-MM-dd").parse(bookingDates[1]);
+
+                List<Date> dateRange = getDateRange(startDate, endDate);
+
+                logger.info("Blocking dates for listing: " + listingName);
+                logger.info("dateRange: " + dateRange);
+
+                for (Date date : dateRange) {
+                    String dateStr = new SimpleDateFormat("yyyy-MM-dd").format(date);
+                    scrollAndClickDate(dateStr);
+                }
+
+                WebElement blockDates = wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("//*[@id=\"HOST-CALENDAR-SIDEBAR-CONTAINER\"]/div/div/div[2]/div/button[2]")));
+//                wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//*[@id=\"HOST-CALENDAR-SIDEBAR-CONTAINER\"]/div/div/div[2]/div/button[2]")));
+                blockDates.click();
+
+                logger.info("Blocking dates for listing: " + listingName);
+                logger.info("Check-in: " + bookingDates[0]);
+                logger.info("Check-out: " + bookingDates[1]);
+
+            }
 
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("Unexpected error occurred", e);
         }
     }
 
-    private void simulateHumanBehavior() throws InterruptedException {
-        // Random delay before actions (between 2 to 5 seconds)
-        int delaySeconds = ThreadLocalRandom.current().nextInt(2, 6);
-
-        // Convert delaySeconds to Duration
-        Duration delayDuration = Duration.ofSeconds(delaySeconds);
-
-        // Wait for the duration
-        WebDriverWait wait = new WebDriverWait(driver, delayDuration);
-        wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("//*[contains(@id, 'random-id')]"))); // Replace with actual XPath
-
-        // Mimic mouse movements (move to a random element)
-        Actions actions = new Actions(driver);
-        WebElement randomElement = driver.findElement(By.xpath("//*[contains(@id, 'random-id')]")); // Replace with actual XPath
-        actions.moveToElement(randomElement).perform();
-
-        // Scroll the page
+    private void scrollAndClickDate(String date) {
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(40));
         JavascriptExecutor js = (JavascriptExecutor) driver;
-        js.executeScript("window.scrollBy(0,300)");
+        WebElement calendarContainer = driver.findElement(By.xpath("//*[@id=\"FMP-target\"]/div"));
 
-        // Wait for JavaScript to load
-        wait.until(ExpectedConditions.jsReturnsValue("return document.readyState === 'complete'"));
-    }
+        int scrollSteps = 150;
+        long scrollWaitTime = 200;
 
-    private void performHumanLikeInput(WebElement element, String text) throws InterruptedException {
-        // Clear existing text (if any)
-        element.clear();
+        for (int i = 0; i < scrollSteps; i++) {
+            try {
+                // Attempt to find the date button
+                WebElement dateButton = driver.findElement(By.xpath("//button[@data-date='" + date + "']"));
 
-        // Type text with human-like typing speed and minor typos
-        for (char c : text.toCharArray()) {
-            element.sendKeys(String.valueOf(c));
-            // Random delay between typing each character (10 to 50 milliseconds)
-            Thread.sleep(ThreadLocalRandom.current().nextInt(10, 51));
+                // Check if the date is in view and clickable
+                js.executeScript("arguments[0].scrollIntoView(true);", dateButton);
+                wait.until(ExpectedConditions.elementToBeClickable(dateButton));
+
+                // Retry clicking if the initial attempt fails
+                for (int attempt = 0; attempt < 5; attempt++) {
+                    try {
+                        dateButton.click();
+                        logger.info("Clicked on date: " + date);
+                        return;
+                    } catch (ElementClickInterceptedException e) {
+                        logger.warn("Click intercepted. Retrying... Attempt " + (attempt + 1));
+                        // Wait for a brief moment before retrying
+                        Thread.sleep(500); // Short wait before retry
+                        js.executeScript("arguments[0].scrollIntoView(true);", dateButton); // Re-scroll into view
+                        wait.until(ExpectedConditions.elementToBeClickable(dateButton));
+                    }
+                }
+            } catch (NoSuchElementException | InterruptedException e) {
+                // If not found, scroll the calendar container
+                js.executeScript("arguments[0].scrollBy(0, arguments[0].scrollHeight / " + scrollSteps + ");", calendarContainer);
+                try {
+                    Thread.sleep(scrollWaitTime);
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                    logger.error("Thread was interrupted during scrolling", ex);
+                }
+            }
         }
+
+        logger.error("Date not found or clickable: " + date);
     }
+
+    private List<Date> getDateRange(Date startDate, Date endDate) {
+        List<Date> dates = new ArrayList<>();
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(startDate);
+        while (calendar.getTime().before(endDate) || calendar.getTime().equals(endDate)) {
+            dates.add(calendar.getTime());
+            calendar.add(Calendar.DAY_OF_MONTH, 1);
+        }
+        return dates;
+    }
+
 }
+//    public void login() {
+//
+//        try {
+//            // Step 1: Navigate to Airbnb and update prices
+//            driver.get(airbnbUrl);
+//
+//            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(20));
+//
+//            Thread.sleep(randomWait);
+//
+//            WebElement menuButton = wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//*[@id='react-application']/div/div/div[1]/div/div[3]/div[2]/div/div/div/header/div/div[3]/nav/div[2]/div/button")));
+//            menuButton.click();
+//
+//            // Wait for the element to be visible
+//            WebElement login = wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("//*[@id='simple-header-profile-menu']/div/a[2]/div")));
+//            login.click();
+//
+//            Thread.sleep(randomWait);
+//
+//            // Wait for the element to be visible
+//            WebElement byEmail = wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("/html/body/div[10]/div/section/div/div/div[2]/div/div[2]/div/div[3]/div/div[4]/button")));
+//            byEmail.click();
+//
+//            Thread.sleep(randomWait);
+//
+//            // Wait for the email input field to become visible and enter the email address
+//            WebElement emailInput = wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("//*[@id=\"email-login-email\"]")));
+//            emailInput.sendKeys(airbnbEmail);
+//
+//            Thread.sleep(randomWait);
+//
+//            // Wait for the email input field to become visible and enter the email address
+//            WebElement emailSubmit = wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("/html/body/div[10]/div/section/div/div/div[2]/div/div[2]/div/form/div[3]/button/span[1]")));
+//            emailSubmit.click();
+//
+//            Thread.sleep(randomWait);
+//
+//            // Wait for the email input field to become visible and enter the email address
+//            WebElement passwordInput = wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("//*[@id=\"email-signup-password\"]")));
+//            passwordInput.sendKeys(airbnbPassword);
+//
+//            Thread.sleep(randomWait);
+//
+//            // Wait for the email input field to become visible and enter the email address
+//            WebElement passwordSubmit = wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("/html/body/div[10]/div/section/div/div/div[2]/div/div[2]/div/div/form/div[3]/button/span[1]")));
+//            passwordSubmit.click();
+//
+//        } catch (Exception e) {
+//            logger.error("Unexpected error occurred", e);
+//        }
+//    }
+
