@@ -33,9 +33,7 @@ public class AirbnbSyncService {
     private String airbnbPassword;
 
     public void blockDates(List<Object[]> bookingInfoList) {
-
         try {
-
             driver.get(airbnbUrl);
 
             WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(40));
@@ -46,14 +44,14 @@ public class AirbnbSyncService {
             WebElement listings = wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("//*[@id=\"simple-header-profile-menu\"]/div/a[4]")));
             listings.click();
 
-            WebElement calendar = wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("//*[@id=\"react-application\"]/div/div/div[1]/div/div/div[1]/div/div/div/nav/div[1]/div/div[2]/div/div/div/div/div[2]")));
-            calendar.click();
-
             for (Object[] bookingInfo : bookingInfoList) {
                 String listingName = (String) bookingInfo[0];
                 String[] bookingDates = (String[]) bookingInfo[1];
 
-                WebElement chooseMenu = wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("//*[@id=\"calendarControlsChipGroup\"]/div[2]/div/div[2]/div[1]/div/div[1]/div/button")));
+                WebElement calendar = wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("//*[@id=\"react-application\"]/div/div/div[1]/div/div/div[1]/div/div/div/nav/div[1]/div/div[2]/div/div/div/div/div[2]")));
+                calendar.click();
+
+                WebElement chooseMenu = wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//*[@id=\"calendarControlsChipGroup\"]/div[2]/div/div[2]/div[1]/div/div[1]/div/button")));
                 chooseMenu.click();
 
                 WebElement listingElement = wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//div[normalize-space(text())='" + listingName + "']/ancestor::label//input[@type='radio']")));
@@ -73,21 +71,26 @@ public class AirbnbSyncService {
                 for (Date date : dateRange) {
                     String dateStr = new SimpleDateFormat("yyyy-MM-dd").format(date);
                     scrollAndClickDate(dateStr);
+
+//                    // Ensure the UI is updated after clicking the date
+//                    wait.until(ExpectedConditions.invisibilityOfElementLocated(By.xpath("//button[@data-date='" + dateStr + "']")));
+//                    wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//button[@data-date='" + dateStr + "']")));
                 }
 
-                WebElement blockDates = wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//*[@id=\"HOST-CALENDAR-SIDEBAR-CONTAINER\"]/div/div/div[2]/div/button[2]")));
-//                wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//*[@id=\"HOST-CALENDAR-SIDEBAR-CONTAINER\"]/div/div/div[2]/div/button[2]")));
-//                String ariaPressed = blockDates.getAttribute("aria-pressed");
-//                if(Objects.equals(ariaPressed, "true")) {
-//                    logger.info("Dates are already blocked for listing: " + listingName);
-//                    continue;
-//                }
+//                Thread.sleep(3000);
+
+                WebElement blockDates = wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("//*[@id=\"HOST-CALENDAR-SIDEBAR-CONTAINER\"]/div/div/div[2]/div/button[2]")));
                 blockDates.click();
 
                 logger.info("Blocked dates for listing: " + listingName);
                 logger.info("Check-in: " + bookingDates[0]);
                 logger.info("Check-out: " + bookingDates[1]);
 
+//                // Refresh the page after blocking dates
+//                driver.navigate().refresh();
+
+                // Wait for the page to refresh and be ready
+                wait.until(ExpectedConditions.presenceOfElementLocated(By.xpath("//*[@id='react-application']")));
             }
 
         } catch (Exception e) {
@@ -95,39 +98,36 @@ public class AirbnbSyncService {
         }
     }
 
+
     private void scrollAndClickDate(String date) {
         WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(40));
         JavascriptExecutor js = (JavascriptExecutor) driver;
         WebElement calendarContainer = driver.findElement(By.xpath("//*[@id=\"FMP-target\"]/div"));
 
         int scrollSteps = 150;
-        long scrollWaitTime = 200;
+        long scrollWaitTime = 200; // Reduced wait time for smoother scrolling
 
         for (int i = 0; i < scrollSteps; i++) {
             try {
-                // Attempt to find the date button
                 WebElement dateButton = driver.findElement(By.xpath("//button[@data-date='" + date + "']"));
-
-                // Check if the date is in view and clickable
                 js.executeScript("arguments[0].scrollIntoView(true);", dateButton);
                 wait.until(ExpectedConditions.elementToBeClickable(dateButton));
 
                 // Retry clicking if the initial attempt fails
-                for (int attempt = 0; attempt < 5; attempt++) {
+                for (int attempt = 0; attempt < 3; attempt++) {
                     try {
                         dateButton.click();
                         logger.info("Clicked on date: " + date);
                         return;
                     } catch (ElementClickInterceptedException e) {
                         logger.warn("Click intercepted. Retrying... Attempt " + (attempt + 1));
-                        // Wait for a brief moment before retrying
-                        Thread.sleep(500); // Short wait before retry
-                        js.executeScript("arguments[0].scrollIntoView(true);", dateButton); // Re-scroll into view
+                        // Wait for a short time and recheck the element's clickability
                         wait.until(ExpectedConditions.elementToBeClickable(dateButton));
+                        Thread.sleep(500); // Brief wait before retrying
+                        js.executeScript("arguments[0].scrollIntoView(true);", dateButton); // Re-scroll into view
                     }
                 }
             } catch (NoSuchElementException | InterruptedException e) {
-                // If not found, scroll the calendar container
                 js.executeScript("arguments[0].scrollBy(0, arguments[0].scrollHeight / " + scrollSteps + ");", calendarContainer);
                 try {
                     Thread.sleep(scrollWaitTime);
@@ -140,6 +140,7 @@ public class AirbnbSyncService {
 
         logger.error("Date not found or clickable: " + date);
     }
+
 
     private List<Date> getDateRange(Date startDate, Date endDate) {
         List<Date> dates = new ArrayList<>();
