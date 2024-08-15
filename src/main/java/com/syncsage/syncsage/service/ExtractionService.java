@@ -43,6 +43,7 @@ public class ExtractionService {
     }
 
     public String[] extractBookingDates(String emailContent) {
+
         try {
             // Define patterns to capture the full date and time
             Matcher checkInMatcher = CHECKIN_PATTERN.matcher(emailContent);
@@ -84,4 +85,5 @@ public class ExtractionService {
         }
         return null;
     }
+
 }
