@@ -65,7 +65,7 @@ public class AirbnbSyncService {
 
                 List<Date> dateRange = getDateRange(startDate, endDate);
 
-                logger.info("Blocking dates for listing: " + listingName);
+                logger.info("SYNC-Blocking dates for listing: " + listingName);
                 logger.info("dateRange: " + dateRange);
 
                 for (Date date : dateRange) {
@@ -77,27 +77,26 @@ public class AirbnbSyncService {
 //                    wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//button[@data-date='" + dateStr + "']")));
                 }
 
-//                Thread.sleep(3000);
+                Thread.sleep(7000);
 
                 WebElement blockDates = wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("//*[@id=\"HOST-CALENDAR-SIDEBAR-CONTAINER\"]/div/div/div[2]/div/button[2]")));
                 blockDates.click();
 
-                logger.info("Blocked dates for listing: " + listingName);
+                logger.info("SYNC--Blocked dates for listing: " + listingName);
                 logger.info("Check-in: " + bookingDates[0]);
                 logger.info("Check-out: " + bookingDates[1]);
 
 //                // Refresh the page after blocking dates
 //                driver.navigate().refresh();
-
-                // Wait for the page to refresh and be ready
-                wait.until(ExpectedConditions.presenceOfElementLocated(By.xpath("//*[@id='react-application']")));
+//
+//                // Wait for the page to refresh and be ready
+//                wait.until(ExpectedConditions.presenceOfElementLocated(By.xpath("//*[@id='react-application']")));
             }
 
         } catch (Exception e) {
             logger.error("Unexpected error occurred", e);
         }
     }
-
 
     private void scrollAndClickDate(String date) {
         WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(40));
@@ -119,12 +118,15 @@ public class AirbnbSyncService {
                         dateButton.click();
                         logger.info("Clicked on date: " + date);
                         return;
-                    } catch (ElementClickInterceptedException e) {
-                        logger.warn("Click intercepted. Retrying... Attempt " + (attempt + 1));
+                    } catch (ElementClickInterceptedException | StaleElementReferenceException e) {
+                        logger.warn("Click intercepted or element became stale. Retrying... Attempt " + (attempt + 1));
                         // Wait for a short time and recheck the element's clickability
-                        wait.until(ExpectedConditions.elementToBeClickable(dateButton));
                         Thread.sleep(500); // Brief wait before retrying
+
+                        // Re-find the dateButton in case it became stale
+                        dateButton = driver.findElement(By.xpath("//button[@data-date='" + date + "']"));
                         js.executeScript("arguments[0].scrollIntoView(true);", dateButton); // Re-scroll into view
+                        wait.until(ExpectedConditions.elementToBeClickable(dateButton));
                     }
                 }
             } catch (NoSuchElementException | InterruptedException e) {
@@ -140,7 +142,6 @@ public class AirbnbSyncService {
 
         logger.error("Date not found or clickable: " + date);
     }
-
 
     private List<Date> getDateRange(Date startDate, Date endDate) {
         List<Date> dates = new ArrayList<>();

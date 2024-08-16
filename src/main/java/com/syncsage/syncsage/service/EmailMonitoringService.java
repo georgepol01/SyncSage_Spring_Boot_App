@@ -12,7 +12,6 @@ import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.SocketException;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -24,7 +23,7 @@ import java.util.List;
 public class EmailMonitoringService {
 
     private static final Logger logger = LoggerFactory.getLogger(EmailMonitoringService.class);
-    private WebDriver driver;
+    private final WebDriver driver;
     private final ExtractionService extractionService;
     private final AirbnbSyncService airbnbSyncService;
     private final SeleniumConfig seleniumConfig;  // Inject the SeleniumConfig
@@ -77,9 +76,8 @@ public class EmailMonitoringService {
 //    }
 
 
-    @Scheduled(fixedDelay  = 30000) // Check every 1 minute (60000 ms)
+    @Scheduled(fixedDelay = 30000)
     public void monitorBookingEmails() {
-
         List<Object[]> bookingInfoList = new ArrayList<>();
 
         if (driver == null) {
@@ -88,110 +86,126 @@ public class EmailMonitoringService {
         }
 
         try {
-            // Open GMX Mail login page
             driver.get(emailProviderUrl);
-
             WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(40));
 
-            // Locate and click the login button
-            WebElement loginButton = wait.until(ExpectedConditions.elementToBeClickable(By.id("login-button")));
-            loginButton.click();
+            loginToEmail(wait);
 
-            // Find the email input field and enter the email address
-            WebElement usernameField = wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("login-email")));
-            usernameField.sendKeys(gmxEmail);
-
-            // Find the password input field and enter the password
-            WebElement passwordField = wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("login-password")));
-            passwordField.sendKeys(gmxPassword);
-
-            // Find the login button and click to submit the login form
-            WebElement loginSubmitButton = wait.until(ExpectedConditions.elementToBeClickable(By.cssSelector(".btn.btn-block.login-submit")));
-            loginSubmitButton.click();
-
-            // Wait for inbox to load after login
             driver.switchTo().defaultContent();
-
-            // Switch to the specific iframe
-            WebElement iframe = wait.until(ExpectedConditions.presenceOfElementLocated(By.id("thirdPartyFrame_mail")));
+            WebElement iframe = wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("thirdPartyFrame_mail")));
             driver.switchTo().frame(iframe);
 
-            // Locate unread email elements
             List<WebElement> emails = driver.findElements(By.cssSelector("#mail-list tbody tr.new"));
+            Thread.sleep(2000);
+
             for (WebElement email : emails) {
-                try {
-                    WebElement nameElement = email.findElement(By.cssSelector(".name"));
-                    if (nameElement.getText().trim().equalsIgnoreCase(emailSender)) {
-                        email.click();
-
-                        // Switch to the specific iframe
-                        WebElement msgIframe = wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("mail-detail")));
-                        driver.switchTo().frame(msgIframe);
-
-                        // Extract details from email content
-                        WebElement emailContent = wait.until(ExpectedConditions.visibilityOfElementLocated(By.tagName("body")));
-                        String contentText = emailContent.getText();
-
-                        // Extract listing name, check-in, and check-out dates
-                        String listingName = extractionService.extractListingName(contentText);
-                        String[] bookingDates = extractionService.extractBookingDates(contentText);
-
-                        // Check if the second date is greater than the current date
-                        if (bookingDates != null && bookingDates.length > 1) {
-                            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-                            try {
-                                LocalDate checkoutDate = LocalDate.parse(bookingDates[0], formatter);
-                                LocalDate currentDate = LocalDate.now();
-
-                                if (!checkoutDate.isAfter(currentDate)) {
-                                    bookingDates = null;
-                                }
-                            } catch (DateTimeParseException e) {
-                                // Handle the case where the date format is invalid
-                                bookingDates = null;
-                                logger.error("Invalid date format in booking dates: ", e);
-                            }
-                        } else {
-                            bookingDates = null;
-                        }
-
-                        // Block dates on Airbnb or Booking.com using extracted details
-                        if (listingName != null && bookingDates != null) {
-                            bookingInfoList.add(new Object[]{listingName, bookingDates});
-                        }
-
-                        // Go back to the email list
-                        driver.switchTo().defaultContent();
-                        driver.switchTo().frame(iframe);
-                    }
-                } catch (NoSuchElementException e) {
-                    logger.warn("Element not found during email processing", e);
-                } catch (Exception e) {
-                    logger.error("Error while processing email", e);
+                if (processEmail(wait, email, bookingInfoList)) {
+                    // After processing each email, refresh the email list
+                    driver.switchTo().defaultContent();
+                    iframe = wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("thirdPartyFrame_mail")));
+                    driver.switchTo().frame(iframe);
                 }
             }
-
-            blockDatesOnPlatform(bookingInfoList);
+            processBookingInfoList(bookingInfoList);
 
         } catch (TimeoutException e) {
             logger.error("Timeout occurred while waiting for an element", e);
-//            restartDriver();
         } catch (WebDriverException e) {
             logger.error("WebDriver error occurred", e);
-
-            // Check if the cause of the WebDriverException is a SocketException
-            if (e.getCause() instanceof java.net.SocketException) {
-                logger.error("Socket connection reset error occurred", e);
-            }
-
-//            restartDriver();
         } catch (Exception e) {
             logger.error("Unexpected error occurred", e);
         }
     }
 
+    private void loginToEmail(WebDriverWait wait) {
+        WebElement loginButton = wait.until(ExpectedConditions.elementToBeClickable(By.id("login-button")));
+        loginButton.click();
+
+        WebElement usernameField = wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("login-email")));
+        usernameField.sendKeys(gmxEmail);
+
+        WebElement passwordField = wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("login-password")));
+        passwordField.sendKeys(gmxPassword);
+
+        WebElement loginSubmitButton = wait.until(ExpectedConditions.elementToBeClickable(By.cssSelector(".btn.btn-block.login-submit")));
+        loginSubmitButton.click();
+
+        logger.info("Logged in to GMX Mail successfully.");
+    }
+
+    private boolean processEmail(WebDriverWait wait, WebElement email, List<Object[]> bookingInfoList) {
+        try {
+            WebElement nameElement = email.findElement(By.cssSelector(".name"));
+            if (nameElement.getText().trim().equalsIgnoreCase(emailSender)) {
+                email.click();
+                Thread.sleep(2000);
+
+                // Switch to email content iframe
+                WebElement msgIframe = wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("mail-detail")));
+                driver.switchTo().frame(msgIframe);
+
+                WebElement emailContent = wait.until(ExpectedConditions.visibilityOfElementLocated(By.tagName("body")));
+                String contentText = emailContent.getText();
+
+                // Extract listing name, check-in, and check-out dates
+                String listingName = extractionService.extractListingName(contentText);
+                String[] bookingDates = extractionService.extractBookingDates(contentText);
+
+                // Validate and add to booking info list
+                if (validateBookingDates(bookingDates)) {
+                    bookingInfoList.add(new Object[]{listingName, bookingDates});
+                }
+
+//                logger.info("EMAIL-Blocking dates for listing: " + listingName);
+//                logger.info("Check-in: " + bookingDates[0]);
+//                logger.info("Check-out: " + bookingDates[1]);
+
+                // Go back to the main frame and email list
+                driver.switchTo().defaultContent();
+                return true;
+            }
+        } catch (StaleElementReferenceException e) {
+            logger.warn("Element became stale during email processing", e);
+        } catch (NoSuchElementException e) {
+            logger.warn("Element not found during email processing", e);
+        } catch (Exception e) {
+            logger.error("Error while processing email", e);
+        }
+        return false;
+    }
+
+    private boolean validateBookingDates(String[] bookingDates) {
+        if (bookingDates == null || bookingDates.length < 2) return false;
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        try {
+            LocalDate checkoutDate = LocalDate.parse(bookingDates[1], formatter);
+            LocalDate currentDate = LocalDate.now();
+            return checkoutDate.isAfter(currentDate);
+        } catch (DateTimeParseException e) {
+            logger.error("Invalid date format in booking dates: ", e);
+            return false;
+        }
+    }
+
+    private void processBookingInfoList(List<Object[]> bookingInfoList) {
+        for (Object[] bookingInfo : bookingInfoList) {
+            String listingName = (String) bookingInfo[0];
+            String[] bookingDates = (String[]) bookingInfo[1];
+
+            logger.info("EMAIL-Blocking dates for listing: " + listingName);
+            if (bookingDates != null && bookingDates.length > 1) {
+                logger.info("Check-in: " + bookingDates[0]);
+                logger.info("Check-out: " + bookingDates[1]);
+            } else {
+                logger.warn("Booking dates are not available for listing: " + listingName);
+            }
+        }
+
+        blockDatesOnPlatform(bookingInfoList);
+    }
+
     private void blockDatesOnPlatform(List<Object[]> bookingInfoList) {
         airbnbSyncService.blockDates(bookingInfoList);
     }
-
 }
