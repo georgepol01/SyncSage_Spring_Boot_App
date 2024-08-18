@@ -18,24 +18,24 @@ public class SeleniumConfig {
     private String userDataDir;
 
     @Bean
-    @Scope("singleton")
+    @Scope("prototype")
     public WebDriver webDriver() {
-        System.setProperty("webdriver.chrome.driver", driverPath);
-
         ChromeOptions options = new ChromeOptions();
-        // Uncomment the following line to run Chrome in headless mode
-        // options.addArguments("--headless");
+        options.addArguments("--disable-software-rasterizer");
+        options.addArguments("--disable-crash-reporter");
+        options.addArguments("--disable-logging");
+        options.addArguments("--disable-infobars");
+        options.addArguments("--disable-browser-side-navigation");
         options.addArguments("--no-sandbox");
         options.addArguments("--disable-dev-shm-usage");
         options.addArguments("--disable-gpu");
-        options.addArguments("--disable-software-rasterizer");
         options.addArguments("--ignore-certificate-errors");
         options.addArguments("--log-level=ALL");
         options.addArguments("--start-maximized");
         options.addArguments("--disable-extensions");
         options.addArguments("user-data-dir=" + userDataDir);
 
+        // Return the WebDriver instance
         return new ChromeDriver(options);
     }
-
 }

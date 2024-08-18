@@ -1,7 +1,6 @@
 package com.syncsage.syncsage.service;
 
 import com.syncsage.syncsage.config.SeleniumConfig;
-import jakarta.annotation.PreDestroy;
 import org.openqa.selenium.*;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
@@ -23,18 +22,9 @@ import java.util.List;
 public class EmailMonitoringService {
 
     private static final Logger logger = LoggerFactory.getLogger(EmailMonitoringService.class);
-    private final WebDriver driver;
     private final ExtractionService extractionService;
     private final AirbnbSyncService airbnbSyncService;
-    private final SeleniumConfig seleniumConfig;  // Inject the SeleniumConfig
-
-    @Autowired
-    public EmailMonitoringService(WebDriver driver, ExtractionService extractionService, AirbnbSyncService airbnbSyncService, SeleniumConfig seleniumConfig) {
-        this.driver = driver;
-        this.extractionService = extractionService;
-        this.airbnbSyncService = airbnbSyncService;
-        this.seleniumConfig = seleniumConfig;  // Initialize the SeleniumConfig
-    }
+    private final SeleniumConfig seleniumConfig;
 
     @Value("${gmx.email}")
     private String gmxEmail;
@@ -48,50 +38,29 @@ public class EmailMonitoringService {
     @Value("${email.provider.url}")
     private String emailProviderUrl;
 
-//    @PreDestroy
-//    public void tearDown() {
-//        if (driver != null) {
-//            try {
-//                driver.quit();
-//            } catch (NoSuchSessionException e) {
-//                logger.warn("WebDriver session already terminated", e);
-//            } catch (WebDriverException e) {
-//                logger.error("Error while closing WebDriver", e);
-//            }
-//        }
-//    }
+    @Autowired
+    public EmailMonitoringService(ExtractionService extractionService, AirbnbSyncService airbnbSyncService, SeleniumConfig seleniumConfig) {
+        this.extractionService = extractionService;
+        this.airbnbSyncService = airbnbSyncService;
+        this.seleniumConfig = seleniumConfig;
+    }
 
-//    private void restartDriver() {
-//        try {
-//            if (driver != null) {
-//                driver.quit(); // Quit the current driver
-//            }
-//        } catch (Exception e) {
-//            logger.error("Error while quitting WebDriver", e);
-//        } finally {
-//            // Reinitialize the driver using the existing SeleniumConfig bean
-//            this.driver = seleniumConfig.webDriver(); // Call the method to create a new driver
-//            logger.info("WebDriver restarted successfully.");
-//        }
-//    }
-
-
-    @Scheduled(fixedDelay = 30000)
-    public void monitorBookingEmails() {
-        List<Object[]> bookingInfoList = new ArrayList<>();
-
-        if (driver == null) {
-            logger.warn("WebDriver is not initialized. Skipping email monitoring.");
-            return;
-        }
-
+    @Scheduled(fixedDelay = 10000)
+    public synchronized void monitorBookingEmails() {
+        WebDriver driver = null;
         try {
+            driver = seleniumConfig.webDriver();
+            List<Object[]> bookingInfoList = new ArrayList<>();
+
             driver.get(emailProviderUrl);
             WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(40));
-
+            Thread.sleep(3000);
             loginToEmail(wait);
+            Thread.sleep(1000);
 
             driver.switchTo().defaultContent();
+            Thread.sleep(1000);
+
             WebElement iframe = wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("thirdPartyFrame_mail")));
             driver.switchTo().frame(iframe);
 
@@ -99,14 +68,14 @@ public class EmailMonitoringService {
             Thread.sleep(2000);
 
             for (WebElement email : emails) {
-                if (processEmail(wait, email, bookingInfoList)) {
-                    // After processing each email, refresh the email list
+                if (processEmail(wait, driver, email, bookingInfoList)) {
                     driver.switchTo().defaultContent();
                     iframe = wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("thirdPartyFrame_mail")));
                     driver.switchTo().frame(iframe);
                 }
             }
-            processBookingInfoList(bookingInfoList);
+
+            processBookingInfoList(wait, driver, bookingInfoList);
 
         } catch (TimeoutException e) {
             logger.error("Timeout occurred while waiting for an element", e);
@@ -114,6 +83,14 @@ public class EmailMonitoringService {
             logger.error("WebDriver error occurred", e);
         } catch (Exception e) {
             logger.error("Unexpected error occurred", e);
+        } finally {
+            if (driver != null) {
+                try {
+                    driver.quit(); // Quit the WebDriver and close all associated windows
+                } catch (Exception e) {
+                    logger.error("Error closing WebDriver", e);
+                }
+            }
         }
     }
 
@@ -133,34 +110,26 @@ public class EmailMonitoringService {
         logger.info("Logged in to GMX Mail successfully.");
     }
 
-    private boolean processEmail(WebDriverWait wait, WebElement email, List<Object[]> bookingInfoList) {
+    private boolean processEmail(WebDriverWait wait, WebDriver driver, WebElement email, List<Object[]> bookingInfoList) {
         try {
             WebElement nameElement = email.findElement(By.cssSelector(".name"));
             if (nameElement.getText().trim().equalsIgnoreCase(emailSender)) {
                 email.click();
                 Thread.sleep(2000);
 
-                // Switch to email content iframe
                 WebElement msgIframe = wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("mail-detail")));
                 driver.switchTo().frame(msgIframe);
 
                 WebElement emailContent = wait.until(ExpectedConditions.visibilityOfElementLocated(By.tagName("body")));
                 String contentText = emailContent.getText();
 
-                // Extract listing name, check-in, and check-out dates
                 String listingName = extractionService.extractListingName(contentText);
                 String[] bookingDates = extractionService.extractBookingDates(contentText);
 
-                // Validate and add to booking info list
                 if (validateBookingDates(bookingDates)) {
                     bookingInfoList.add(new Object[]{listingName, bookingDates});
                 }
 
-//                logger.info("EMAIL-Blocking dates for listing: " + listingName);
-//                logger.info("Check-in: " + bookingDates[0]);
-//                logger.info("Check-out: " + bookingDates[1]);
-
-                // Go back to the main frame and email list
                 driver.switchTo().defaultContent();
                 return true;
             }
@@ -188,7 +157,7 @@ public class EmailMonitoringService {
         }
     }
 
-    private void processBookingInfoList(List<Object[]> bookingInfoList) {
+    private void processBookingInfoList(WebDriverWait wait, WebDriver driver, List<Object[]> bookingInfoList) {
         for (Object[] bookingInfo : bookingInfoList) {
             String listingName = (String) bookingInfo[0];
             String[] bookingDates = (String[]) bookingInfo[1];
@@ -202,10 +171,11 @@ public class EmailMonitoringService {
             }
         }
 
-        blockDatesOnPlatform(bookingInfoList);
+        blockDatesOnPlatform(wait, driver, bookingInfoList);
     }
 
-    private void blockDatesOnPlatform(List<Object[]> bookingInfoList) {
-        airbnbSyncService.blockDates(bookingInfoList);
+    private void blockDatesOnPlatform(WebDriverWait wait, WebDriver driver, List<Object[]> bookingInfoList) {
+        airbnbSyncService.blockDates(wait, driver, bookingInfoList);
     }
+
 }

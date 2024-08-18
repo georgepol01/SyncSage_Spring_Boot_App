@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.net.SocketException;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.util.*;
@@ -18,11 +19,7 @@ import java.util.*;
 public class AirbnbSyncService {
 
     private static final Logger logger = LoggerFactory.getLogger(EmailMonitoringService.class);
-    private final WebDriver driver;
-    @Autowired
-    public AirbnbSyncService(WebDriver driver) {
-        this.driver = driver;
-    }
+
     @Value("${airbnb.url}")
     private String airbnbUrl;
 
@@ -32,11 +29,9 @@ public class AirbnbSyncService {
     @Value("${airbnb.password}")
     private String airbnbPassword;
 
-    public void blockDates(List<Object[]> bookingInfoList) {
+    public void blockDates(WebDriverWait wait, WebDriver driver, List<Object[]> bookingInfoList) {
         try {
             driver.get(airbnbUrl);
-
-            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(40));
 
             WebElement menuButton = wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//*[@id='react-application']/div/div/div[1]/div/div[3]/div[2]/div/div/div/header/div/div[3]/nav/div[2]/div/button")));
             menuButton.click();
@@ -70,11 +65,10 @@ public class AirbnbSyncService {
 
                 for (Date date : dateRange) {
                     String dateStr = new SimpleDateFormat("yyyy-MM-dd").format(date);
-                    scrollAndClickDate(dateStr);
+                    scrollAndClickDate(wait, driver, dateStr);
 
-//                    // Ensure the UI is updated after clicking the date
-//                    wait.until(ExpectedConditions.invisibilityOfElementLocated(By.xpath("//button[@data-date='" + dateStr + "']")));
-//                    wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//button[@data-date='" + dateStr + "']")));
+                    // Ensure the UI is updated after clicking the date
+                    wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//button[@data-date='" + dateStr + "']")));
                 }
 
                 Thread.sleep(7000);
@@ -86,11 +80,11 @@ public class AirbnbSyncService {
                 logger.info("Check-in: " + bookingDates[0]);
                 logger.info("Check-out: " + bookingDates[1]);
 
-//                // Refresh the page after blocking dates
-//                driver.navigate().refresh();
-//
-//                // Wait for the page to refresh and be ready
-//                wait.until(ExpectedConditions.presenceOfElementLocated(By.xpath("//*[@id='react-application']")));
+                // Refresh the page after blocking dates
+                driver.navigate().refresh();
+
+                // Wait for the page to refresh and be ready
+                wait.until(ExpectedConditions.presenceOfElementLocated(By.xpath("//*[@id='react-application']")));
             }
 
         } catch (Exception e) {
@@ -98,45 +92,72 @@ public class AirbnbSyncService {
         }
     }
 
-    private void scrollAndClickDate(String date) {
-        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(40));
+    private void scrollAndClickDate(WebDriverWait wait, WebDriver driver, String date) {
         JavascriptExecutor js = (JavascriptExecutor) driver;
         WebElement calendarContainer = driver.findElement(By.xpath("//*[@id=\"FMP-target\"]/div"));
 
-        int scrollSteps = 150;
-        long scrollWaitTime = 200; // Reduced wait time for smoother scrolling
+        int scrollSteps = 50; // Reduced number of scroll steps for stability
+        long scrollWaitTime = 500; // Increased wait time for smoother scrolling
+        int maxRetryAttempts = 3; // Maximum retry attempts for handling errors
+        long retryDelay = 2000; // Delay between retry attempts
 
         for (int i = 0; i < scrollSteps; i++) {
-            try {
-                WebElement dateButton = driver.findElement(By.xpath("//button[@data-date='" + date + "']"));
-                js.executeScript("arguments[0].scrollIntoView(true);", dateButton);
-                wait.until(ExpectedConditions.elementToBeClickable(dateButton));
+            boolean success = false;
 
-                // Retry clicking if the initial attempt fails
-                for (int attempt = 0; attempt < 3; attempt++) {
-                    try {
-                        dateButton.click();
-                        logger.info("Clicked on date: " + date);
-                        return;
-                    } catch (ElementClickInterceptedException | StaleElementReferenceException e) {
-                        logger.warn("Click intercepted or element became stale. Retrying... Attempt " + (attempt + 1));
-                        // Wait for a short time and recheck the element's clickability
-                        Thread.sleep(500); // Brief wait before retrying
-
-                        // Re-find the dateButton in case it became stale
-                        dateButton = driver.findElement(By.xpath("//button[@data-date='" + date + "']"));
-                        js.executeScript("arguments[0].scrollIntoView(true);", dateButton); // Re-scroll into view
-                        wait.until(ExpectedConditions.elementToBeClickable(dateButton));
-                    }
-                }
-            } catch (NoSuchElementException | InterruptedException e) {
-                js.executeScript("arguments[0].scrollBy(0, arguments[0].scrollHeight / " + scrollSteps + ");", calendarContainer);
+            for (int attempt = 0; attempt < maxRetryAttempts; attempt++) {
                 try {
-                    Thread.sleep(scrollWaitTime);
-                } catch (InterruptedException ex) {
-                    Thread.currentThread().interrupt();
-                    logger.error("Thread was interrupted during scrolling", ex);
+                    WebElement dateButton = null;
+                    try {
+                        dateButton = driver.findElement(By.xpath("//button[@data-date='" + date + "']"));
+                    } catch (NoSuchElementException e) {
+                        logger.warn("Date button not found. Scrolling more...");
+                        js.executeScript("arguments[0].scrollBy(0, arguments[0].scrollHeight / " + scrollSteps + ");", calendarContainer);
+                        Thread.sleep(scrollWaitTime);
+                        continue; // Retry locating the element after scrolling
+                    }
+
+                    js.executeScript("arguments[0].scrollIntoView(true);", dateButton);
+                    wait.until(ExpectedConditions.elementToBeClickable(dateButton));
+
+                    // Attempt to click the date button
+                    dateButton.click();
+                    logger.info("Clicked on date: " + date);
+                    success = true;
+                    break; // Exit the retry loop if successful
+                } catch (ElementClickInterceptedException | StaleElementReferenceException e) {
+                    logger.warn("Click intercepted or element became stale. Retrying... Attempt " + (attempt + 1), e);
+                    try {
+                        Thread.sleep(500); // Brief wait before retrying
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        logger.error("Thread was interrupted during retry wait", ie);
+                    }
+                } catch (WebDriverException e) {
+                    // Handle connection reset or WebDriver exceptions
+                    logger.error("Connection issue or WebDriver exception. Retrying... Attempt " + (attempt + 1), e);
+                    try {
+                        Thread.sleep(retryDelay); // Wait before retrying
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        logger.error("Thread was interrupted during retry delay", ie);
+                    }
+                } catch (Exception e) {
+                    logger.error("Unexpected error during clicking", e);
+                    // Handle other exceptions or add additional retry logic here if needed
+                    break; // Exit retry loop on unexpected errors
                 }
+            }
+            if (success) {
+                return; // Exit the method if successful
+            }
+
+            // Scroll down the calendar container if the date button was not found or not clickable
+            js.executeScript("arguments[0].scrollBy(0, arguments[0].scrollHeight / " + scrollSteps + ");", calendarContainer);
+            try {
+                Thread.sleep(scrollWaitTime); // Wait after scrolling
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+                logger.error("Thread was interrupted during scrolling", ex);
             }
         }
 
