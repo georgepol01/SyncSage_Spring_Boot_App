@@ -63,5 +63,9 @@ Follow these steps to set up and run SyncSage:
   - After setting up all configurations, build the application using your IDE or a command-line tool.
   - Run the application, and SyncSage will begin monitoring emails and synchronizing your listings automatically.
 
-**Please note** that you'll need to manually enter your Airbnb credentials during the process and ensure any pop-ups on GMX.com are closed, as the app relies on the Chrome profile for maintaining session information.
+**Please note** that you'll need to manually enter your Airbnb credentials during the first itteration and ensure any pop-ups on GMX.com are closed, as the app relies on the Chrome profile for maintaining session information.
 
+### **Disclaimer**
+ - This application is a prototype developed for educational purposes during university studies and is not intended for commercial use. It is not a finished product and has significant room for improvement. Currently, the app is configured to run in browser mode rather than headless mode, leaving potential for enhanced speed and performance. Additionally, there is an opportunity to extend its functionality to support other email providers and booking platforms.
+
+ - The application also has room for improvement in logging and error handling, particularly through the use of Spring AOP. A commented implementation is already included, which can be further developed to enhance these aspects.
