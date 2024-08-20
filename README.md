@@ -9,7 +9,7 @@
 
 - **Cross-Platform Synchronization**: The tool automatically adjusts your availability settings across different platforms, ensuring that any changes on one platform are reflected on all others. This helps prevent double bookings and ensures that your listings are always up-to-date.
 
-- **Seamless Integration: Built with Spring Boot, SyncSage integrates effortlessly into your existing infrastructure, providing a robust and scalable solution for property managers who need to handle multiple listings across various platforms.
+- **Seamless Integration**: Built with Spring Boot, SyncSage integrates effortlessly into your existing infrastructure, providing a robust and scalable solution for property managers who need to handle multiple listings across various platforms.
 
 - **Error Handling and Reporting**: SyncSage includes comprehensive error handling mechanisms to manage any inconsistencies or issues that may arise during the synchronization process. Detailed logs and reports are generated to help you stay informed and address potential problems quickly.
 
@@ -59,8 +59,8 @@ Follow these steps to set up and run SyncSage:
 
 7. ### **Build and Run the Application**:
 
-  -After setting up all configurations, build the application using your IDE or a command-line tool.
-  -Run the application, and SyncSage will begin monitoring emails and synchronizing your listings automatically.
+  - After setting up all configurations, build the application using your IDE or a command-line tool.
+  - Run the application, and SyncSage will begin monitoring emails and synchronizing your listings automatically.
 
 Please note that you'll need to manually enter your Airbnb credentials during the process and ensure any pop-ups on GMX.com are closed, as the app relies on the Chrome profile for maintaining session information.
 
