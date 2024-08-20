@@ -41,27 +41,27 @@ Follow these steps to set up and run SyncSage:
 
   **4. Configure application.properties**:
 
-    - Use the application.properties.template provided in the repository to create a new application.properties file.
-    - Fill in the necessary values under #Email Monitoring Service Settings.
-    - Ensure that email.provider.url=https://www.gmx.com/ remains unchanged, as SyncSage currently only supports GMX email.
-    - Create a GMX Email Account: If you don’t already have one, create a GMX email account and link it to your listing platform (e.g., Booking.com).
-    - Set email.sender: Enter the sender's name for the confirmation emails sent by the booking platform when a booking is confirmed.
-    - Set GMX Email Credentials: Provide the gmx.email and gmx.password values with the credentials of your GMX email account.
-    - Set airbnb.listing.names: List the names of the Airbnb listings you manage, as these will be monitored by SyncSage.
+  - Use the application.properties.template provided in the repository to create a new application.properties file.
+  - Fill in the necessary values under #Email Monitoring Service Settings.
+  - Ensure that email.provider.url=https://www.gmx.com/ remains unchanged, as SyncSage currently only supports GMX email.
+  - Create a GMX Email Account: If you don’t already have one, create a GMX email account and link it to your listing platform (e.g., Booking.com).
+  - Set email.sender: Enter the sender's name for the confirmation emails sent by the booking platform when a booking is confirmed.
+  - Set GMX Email Credentials: Provide the gmx.email and gmx.password values with the credentials of your GMX email account.
+  - Set airbnb.listing.names: List the names of the Airbnb listings you manage, as these will be monitored by SyncSage.
   
   **5. Download and Configure ChromeDriver**:
 
-    - Download the latest version of ChromeDriver and ensure your Google Chrome browser is updated to the latest version.
-    - Make sure that the ChromeDriver version is compatible with your version of Chrome.
+  - Download the latest version of ChromeDriver and ensure your Google Chrome browser is updated to the latest version.
+  - Make sure that the ChromeDriver version is compatible with your version of Chrome.
   
   **6. Adjust the Scheduler** (Optional):
 
-    - In the EmailMonitoringService class, you can customize how often the email monitoring scheduler runs. For example, adjust the interval with @Scheduled(fixedDelay = 10000) to set the desired delay in milliseconds.
+  - In the EmailMonitoringService class, you can customize how often the email monitoring scheduler runs. For example, adjust the interval with @Scheduled(fixedDelay = 10000) to set the desired delay in milliseconds.
 
   **7. Build and Run the Application**:
 
-    - After setting up all configurations, build the application using your IDE or a command-line tool.
-    - Run the application, and SyncSage will begin monitoring emails and synchronizing your listings automatically.
+  - After setting up all configurations, build the application using your IDE or a command-line tool.
+  - Run the application, and SyncSage will begin monitoring emails and synchronizing your listings automatically.
 
 Please note that you'll need to manually enter your Airbnb credentials during the process and ensure any pop-ups on GMX.com are closed, as the app relies on the Chrome profile for maintaining session information.
 
