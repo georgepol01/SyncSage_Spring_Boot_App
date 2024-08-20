@@ -5,8 +5,7 @@
 **SyncSage** is an advanced automation tool designed to streamline the management of listing availability across multiple booking platforms, including Booking.com and Airbnb. By monitoring and processing emails associated with these platforms, SyncSage ensures that your listing availability is consistently synchronized, reducing the risk of double bookings and improving overall efficiency.
 
 ## **Key Features**:
-  - **Email Monitoring and Processing**: SyncSage intelligently scans and interprets incoming emails from various booking platforms to detect updates to your listing availability. This process is fully automated, requiring no manual     
-intervention.
+  - **Email Monitoring and Processing**: SyncSage intelligently scans and interprets incoming emails from various booking platforms to detect updates to your listing availability. This process is fully automated, requiring no manual intervention.
 
   - **Cross-Platform Synchronization**: The tool automatically adjusts your availability settings across different platforms, ensuring that any changes on one platform are reflected on all others. This helps prevent double bookings and ensures that your listings are always up-to-date.
 
