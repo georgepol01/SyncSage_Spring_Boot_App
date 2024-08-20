@@ -56,12 +56,12 @@ Follow these steps to set up and run SyncSage:
   
   **6. Adjust the Scheduler** (Optional):
 
-  - In the EmailMonitoringService class, you can customize how often the email monitoring scheduler runs. For example, adjust the interval with @Scheduled(fixedDelay = 10000) to set the desired delay in milliseconds.
+  - In the EmailMonitoringService class, you can customize the frequency of the email monitoring scheduler by adjusting the interval. For instance, you can use the @Scheduled(fixedDelay = 10000) annotation to set a delay of 10,000 milliseconds (10 seconds) between executions. It’s advisable to avoid using very short intervals, as frequent requests may trigger security alerts from Airbnb due to the high volume of requests in a brief period.
 
   **7. Build and Run the Application**:
 
   - After setting up all configurations, build the application using your IDE or a command-line tool.
   - Run the application, and SyncSage will begin monitoring emails and synchronizing your listings automatically.
 
-Please note that you'll need to manually enter your Airbnb credentials during the process and ensure any pop-ups on GMX.com are closed, as the app relies on the Chrome profile for maintaining session information.
+**Please note** that you'll need to manually enter your Airbnb credentials during the process and ensure any pop-ups on GMX.com are closed, as the app relies on the Chrome profile for maintaining session information.
 
