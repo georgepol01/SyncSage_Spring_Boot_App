@@ -56,7 +56,7 @@ Follow these steps to set up and run SyncSage:
   
   **6. Adjust the Scheduler** (Optional):
 
-  - In the EmailMonitoringService class, you can customize the frequency of the email monitoring scheduler by adjusting the interval. For instance, you can use the @Scheduled(fixedDelay = 10000) annotation to set a delay of 10,000 milliseconds (10 seconds) between executions. ### **It’s advisable to avoid using very short intervals, as frequent requests may trigger security alerts from Airbnb due to the high volume of requests in a brief period.**
+  - In the EmailMonitoringService class, you can customize the frequency of the email monitoring scheduler by adjusting the interval. For instance, you can use the @Scheduled(fixedDelay = 10000) annotation to set a delay of 10,000 milliseconds (10 seconds) between executions. **It’s advisable to avoid using very short intervals, as frequent requests may trigger security alerts from Airbnb due to the high volume of requests in a brief period.**
 
   **7. Build and Run the Application**:
 
