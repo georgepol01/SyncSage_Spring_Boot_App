@@ -6,7 +6,6 @@ import org.springframework.stereotype.Service;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
-import java.time.format.DateTimeParseException;
 import java.util.Date;
 import java.util.Locale;
 import java.util.regex.Matcher;
@@ -43,7 +42,6 @@ public class ExtractionService {
     }
 
     public String[] extractBookingDates(String emailContent) {
-
         try {
             // Define patterns to capture the full date and time
             Matcher checkInMatcher = CHECKIN_PATTERN.matcher(emailContent);
@@ -60,10 +58,10 @@ public class ExtractionService {
                 String checkOutDate = checkOutMatcher.group(3);
                 String checkOutTime = checkOutMatcher.group(4);
 
-                // Assume current year
+                // Get the current year
                 int currentYear = LocalDate.now().getYear();
 
-                // Construct date strings with the year
+                // Construct date strings assuming the check-in and check-out are in the same year
                 String checkInDateStr = String.format("%s, %s %s %d %s", checkInDay, checkInMonth, checkInDate, currentYear, checkInTime);
                 String checkOutDateStr = String.format("%s, %s %s %d %s", checkOutDay, checkOutMonth, checkOutDate, currentYear, checkOutTime);
 
@@ -71,19 +69,26 @@ public class ExtractionService {
                 SimpleDateFormat inputFormat = new SimpleDateFormat("E, MMM d yyyy h:mm a", Locale.ENGLISH);
                 SimpleDateFormat outputFormat = new SimpleDateFormat("yyyy-MM-dd");
 
-                // Parse and format the dates
+                // Parse the check-in and check-out dates
                 Date checkInDateParsed = inputFormat.parse(checkInDateStr);
                 Date checkOutDateParsed = inputFormat.parse(checkOutDateStr);
 
+                // Check if the check-out date is before the check-in date, indicating it might be in the next year
+                if (checkOutDateParsed.before(checkInDateParsed)) {
+                    // Rebuild the check-out date string with the next year
+                    checkOutDateStr = String.format("%s, %s %s %d %s", checkOutDay, checkOutMonth, checkOutDate, currentYear + 1, checkOutTime);
+                    checkOutDateParsed = inputFormat.parse(checkOutDateStr);
+                }
+
+                // Format the dates for return
                 String checkInFormatted = outputFormat.format(checkInDateParsed);
                 String checkOutFormatted = outputFormat.format(checkOutDateParsed);
 
                 return new String[]{checkInFormatted, checkOutFormatted};
             }
-        } catch (DateTimeParseException | ParseException e) {
+        } catch (ParseException e) {
             logger.error("Date parsing error: {}", e.getMessage());
         }
         return null;
     }
-
 }

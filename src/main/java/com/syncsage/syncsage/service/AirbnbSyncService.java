@@ -6,13 +6,10 @@ import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.net.SocketException;
 import java.text.SimpleDateFormat;
-import java.time.Duration;
 import java.util.*;
 
 @Service
@@ -30,6 +27,7 @@ public class AirbnbSyncService {
     private String airbnbPassword;
 
     public void blockDates(WebDriverWait wait, WebDriver driver, List<Object[]> bookingInfoList) {
+
         try {
             driver.get(airbnbUrl);
 
@@ -67,11 +65,10 @@ public class AirbnbSyncService {
                     String dateStr = new SimpleDateFormat("yyyy-MM-dd").format(date);
                     scrollAndClickDate(wait, driver, dateStr);
 
-                    // Ensure the UI is updated after clicking the date
                     wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//button[@data-date='" + dateStr + "']")));
                 }
 
-                Thread.sleep(7000);
+                Thread.sleep(4000);
 
                 WebElement blockDates = wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("//*[@id=\"HOST-CALENDAR-SIDEBAR-CONTAINER\"]/div/div/div[2]/div/button[2]")));
                 blockDates.click();
@@ -79,92 +76,97 @@ public class AirbnbSyncService {
                 logger.info("SYNC--Blocked dates for listing: " + listingName);
                 logger.info("Check-in: " + bookingDates[0]);
                 logger.info("Check-out: " + bookingDates[1]);
-
-                // Refresh the page after blocking dates
-                driver.navigate().refresh();
-
-                // Wait for the page to refresh and be ready
-                wait.until(ExpectedConditions.presenceOfElementLocated(By.xpath("//*[@id='react-application']")));
             }
-
         } catch (Exception e) {
             logger.error("Unexpected error occurred", e);
         }
+
     }
 
     private void scrollAndClickDate(WebDriverWait wait, WebDriver driver, String date) {
         JavascriptExecutor js = (JavascriptExecutor) driver;
         WebElement calendarContainer = driver.findElement(By.xpath("//*[@id=\"FMP-target\"]/div"));
 
-        int scrollSteps = 50; // Reduced number of scroll steps for stability
-        long scrollWaitTime = 500; // Increased wait time for smoother scrolling
-        int maxRetryAttempts = 3; // Maximum retry attempts for handling errors
-        long retryDelay = 2000; // Delay between retry attempts
+        int scrollSteps = 50;
+        long scrollWaitTime = 500;
+        int maxRetryAttempts = 3;
+        long retryDelay = 2000;
+        boolean shouldLog = false;
 
         for (int i = 0; i < scrollSteps; i++) {
             boolean success = false;
 
             for (int attempt = 0; attempt < maxRetryAttempts; attempt++) {
                 try {
-                    WebElement dateButton = null;
+                    WebElement dateButton;
                     try {
                         dateButton = driver.findElement(By.xpath("//button[@data-date='" + date + "']"));
                     } catch (NoSuchElementException e) {
-                        logger.warn("Date button not found. Scrolling more...");
+                        if (i == scrollSteps - 1 && attempt == maxRetryAttempts - 1) {
+                            logger.warn("Date button not found after maximum scrolling and attempts. Date: " + date);
+                        }
                         js.executeScript("arguments[0].scrollBy(0, arguments[0].scrollHeight / " + scrollSteps + ");", calendarContainer);
                         Thread.sleep(scrollWaitTime);
                         continue; // Retry locating the element after scrolling
                     }
-
                     js.executeScript("arguments[0].scrollIntoView(true);", dateButton);
                     wait.until(ExpectedConditions.elementToBeClickable(dateButton));
 
-                    // Attempt to click the date button
                     dateButton.click();
+                    Thread.sleep(500);
                     logger.info("Clicked on date: " + date);
                     success = true;
-                    break; // Exit the retry loop if successful
+                    break;
                 } catch (ElementClickInterceptedException | StaleElementReferenceException e) {
-                    logger.warn("Click intercepted or element became stale. Retrying... Attempt " + (attempt + 1), e);
+                    if (attempt == maxRetryAttempts - 1) {
+                        shouldLog = true;  // Log only after the final attempt fails
+                    }
+                    if (shouldLog) {
+                        logger.warn("Click intercepted or element became stale. Retrying... Attempt " + (attempt + 1));
+                    }
                     try {
-                        Thread.sleep(500); // Brief wait before retrying
+                        Thread.sleep(500);
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
                         logger.error("Thread was interrupted during retry wait", ie);
                     }
                 } catch (WebDriverException e) {
-                    // Handle connection reset or WebDriver exceptions
-                    logger.error("Connection issue or WebDriver exception. Retrying... Attempt " + (attempt + 1), e);
+                    if (attempt == maxRetryAttempts - 1) {
+                        shouldLog = true;  // Log only after the final attempt fails
+                    }
+                    if (shouldLog) {
+                        logger.error("Connection issue or WebDriver exception. Retrying... Attempt " + (attempt + 1));
+                    }
                     try {
-                        Thread.sleep(retryDelay); // Wait before retrying
+                        Thread.sleep(retryDelay);
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
                         logger.error("Thread was interrupted during retry delay", ie);
                     }
                 } catch (Exception e) {
                     logger.error("Unexpected error during clicking", e);
-                    // Handle other exceptions or add additional retry logic here if needed
-                    break; // Exit retry loop on unexpected errors
+                    break;
                 }
             }
             if (success) {
-                return; // Exit the method if successful
+                return;
             }
-
             // Scroll down the calendar container if the date button was not found or not clickable
             js.executeScript("arguments[0].scrollBy(0, arguments[0].scrollHeight / " + scrollSteps + ");", calendarContainer);
             try {
-                Thread.sleep(scrollWaitTime); // Wait after scrolling
+                Thread.sleep(scrollWaitTime);
             } catch (InterruptedException ex) {
                 Thread.currentThread().interrupt();
                 logger.error("Thread was interrupted during scrolling", ex);
             }
         }
+        logger.error("Date not found or clickable after all attempts: " + date);
 
-        logger.error("Date not found or clickable: " + date);
     }
 
+
     private List<Date> getDateRange(Date startDate, Date endDate) {
+
         List<Date> dates = new ArrayList<>();
         Calendar calendar = Calendar.getInstance();
         calendar.setTime(startDate);
@@ -173,6 +175,7 @@ public class AirbnbSyncService {
             calendar.add(Calendar.DAY_OF_MONTH, 1);
         }
         return dates;
+
     }
 
 }
@@ -227,4 +230,3 @@ public class AirbnbSyncService {
 //            logger.error("Unexpected error occurred", e);
 //        }
 //    }
-

@@ -20,7 +20,10 @@ public class SeleniumConfig {
     @Bean
     @Scope("prototype")
     public WebDriver webDriver() {
+
+        System.setProperty("webdriver.chrome.driver", driverPath);
         ChromeOptions options = new ChromeOptions();
+
         options.addArguments("--disable-software-rasterizer");
         options.addArguments("--disable-crash-reporter");
         options.addArguments("--disable-logging");
@@ -35,7 +38,8 @@ public class SeleniumConfig {
         options.addArguments("--disable-extensions");
         options.addArguments("user-data-dir=" + userDataDir);
 
-        // Return the WebDriver instance
         return new ChromeDriver(options);
+
     }
+
 }

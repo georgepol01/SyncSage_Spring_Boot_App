@@ -20,7 +20,6 @@ import java.util.List;
 
 @Service
 public class EmailMonitoringService {
-
     private static final Logger logger = LoggerFactory.getLogger(EmailMonitoringService.class);
     private final ExtractionService extractionService;
     private final AirbnbSyncService airbnbSyncService;
@@ -40,14 +39,18 @@ public class EmailMonitoringService {
 
     @Autowired
     public EmailMonitoringService(ExtractionService extractionService, AirbnbSyncService airbnbSyncService, SeleniumConfig seleniumConfig) {
+
         this.extractionService = extractionService;
         this.airbnbSyncService = airbnbSyncService;
         this.seleniumConfig = seleniumConfig;
+
     }
 
     @Scheduled(fixedDelay = 10000)
     public synchronized void monitorBookingEmails() {
+
         WebDriver driver = null;
+
         try {
             driver = seleniumConfig.webDriver();
             List<Object[]> bookingInfoList = new ArrayList<>();
@@ -86,15 +89,17 @@ public class EmailMonitoringService {
         } finally {
             if (driver != null) {
                 try {
-                    driver.quit(); // Quit the WebDriver and close all associated windows
+                    driver.quit();
                 } catch (Exception e) {
                     logger.error("Error closing WebDriver", e);
                 }
             }
         }
+
     }
 
     private void loginToEmail(WebDriverWait wait) {
+
         WebElement loginButton = wait.until(ExpectedConditions.elementToBeClickable(By.id("login-button")));
         loginButton.click();
 
@@ -108,9 +113,11 @@ public class EmailMonitoringService {
         loginSubmitButton.click();
 
         logger.info("Logged in to GMX Mail successfully.");
+
     }
 
     private boolean processEmail(WebDriverWait wait, WebDriver driver, WebElement email, List<Object[]> bookingInfoList) {
+
         try {
             WebElement nameElement = email.findElement(By.cssSelector(".name"));
             if (nameElement.getText().trim().equalsIgnoreCase(emailSender)) {
@@ -141,9 +148,11 @@ public class EmailMonitoringService {
             logger.error("Error while processing email", e);
         }
         return false;
+
     }
 
     private boolean validateBookingDates(String[] bookingDates) {
+
         if (bookingDates == null || bookingDates.length < 2) return false;
 
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
@@ -155,9 +164,11 @@ public class EmailMonitoringService {
             logger.error("Invalid date format in booking dates: ", e);
             return false;
         }
+
     }
 
     private void processBookingInfoList(WebDriverWait wait, WebDriver driver, List<Object[]> bookingInfoList) {
+
         for (Object[] bookingInfo : bookingInfoList) {
             String listingName = (String) bookingInfo[0];
             String[] bookingDates = (String[]) bookingInfo[1];
@@ -170,12 +181,14 @@ public class EmailMonitoringService {
                 logger.warn("Booking dates are not available for listing: " + listingName);
             }
         }
-
         blockDatesOnPlatform(wait, driver, bookingInfoList);
+
     }
 
     private void blockDatesOnPlatform(WebDriverWait wait, WebDriver driver, List<Object[]> bookingInfoList) {
+
         airbnbSyncService.blockDates(wait, driver, bookingInfoList);
+
     }
 
 }
