@@ -46,7 +46,7 @@ public class EmailMonitoringService {
 
     }
 
-    @Scheduled(fixedDelay = 10000)
+    @Scheduled(fixedDelay = 10000)//Adjust time in millis current 10 seconds
     public synchronized void monitorBookingEmails() {
 
         WebDriver driver = null;
